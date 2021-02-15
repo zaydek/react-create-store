@@ -1,4 +1,4 @@
-import createStore from "./createStore"
+import { createStore } from "./createStore"
 
 // Creates a new four-character hash ID.
 function newID() {
@@ -64,24 +64,21 @@ function App() {
 	const funcs = reduce(state, setState)
 
 	return (
-		<>
-			<div>
-				{/* eslint-disable-next-line no-sequences */}
-				<form onSubmit={e => (e.preventDefault(), funcs.addTodo())}>
-					<input type="checkbox" checked={state.done} onChange={e => funcs.setDone(e.target.checked)} />
-					<input type="text" value={state.text} onChange={e => funcs.setText(e.target.value)} />
-					<button type="submit">+</button>
-				</form>
-				{state.todos.map(each => (
-					<div key={each.id}>
-						<input type="checkbox" checked={each.done} onChange={e => funcs.setDoneByID(each.id, e.target.checked)} />
-						<input type="text" value={each.text} onChange={e => funcs.setTextByID(each.id, e.target.value)} />
-						<button onClick={() => funcs.removeByID(each.id)}>-</button>
-					</div>
-				))}
-			</div>
-			{/* <button onClick={e => setState(initialState)}>Reset back to the original state</button> */}
-		</>
+		<div>
+			{/* eslint-disable-next-line no-sequences */}
+			<form onSubmit={e => (e.preventDefault(), funcs.addTodo())}>
+				<input type="checkbox" checked={state.done} onChange={e => funcs.setDone(e.target.checked)} />
+				<input type="text" value={state.text} onChange={e => funcs.setText(e.target.value)} />
+				<button type="submit">+</button>
+			</form>
+			{state.todos.map(each => (
+				<div key={each.id}>
+					<input type="checkbox" checked={each.done} onChange={e => funcs.setDoneByID(each.id, e.target.checked)} />
+					<input type="text" value={each.text} onChange={e => funcs.setTextByID(each.id, e.target.value)} />
+					<button onClick={() => funcs.removeByID(each.id)}>-</button>
+				</div>
+			))}
+		</div>
 	)
 }
 

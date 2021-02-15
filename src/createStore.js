@@ -1,16 +1,16 @@
-import { useLayoutEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 
-// function noop() {}
-
-// Creates a store implementation that is orthogonal to useState. The store is
-// responsible for capturing the current state, managing subscribers, and
-// broadcasting state changes to subscribers.
+// createStore and createLazyStore are store implementations that broadcast
+// state changes eagerly (useLayoutEffect) or lazily (useEffect). createStore
+// and createLazyStore return a function that is orthogonal to useState.
 //
-// This implementation is inspired by @mucsi96’s react-create-shared-state.
-//
+// This implementation is inspired by react-create-shared-state.
 // https://github.com/mucsi96/react-create-shared-state
-export default function createStore(initialState) {
-	const subscribers = new Set()
+
+// createStore creates an eager store. An eager store eagerly broadcasts state
+// changes to subscriptions (useLayoutEffect).
+export function createStore(initialState) {
+	const subscriptions = new Set()
 
 	// cachedState captures the current state the current state for new component
 	// mounts; see useState(cachedState).
@@ -20,16 +20,47 @@ export default function createStore(initialState) {
 
 		// Effect for when a component mounts / unmounts.
 		useLayoutEffect(() => {
-			subscribers.add(setState)
+			subscriptions.add(setState)
 			return () => {
-				subscribers.delete(setState)
+				subscriptions.delete(setState)
 			}
 		}, [])
 
 		// Effect for state changes.
 		useLayoutEffect(() => {
 			cachedState = state
-			for (const setState of subscribers) {
+			for (const setState of subscriptions) {
+				setState(state)
+			}
+		}, [state])
+
+		return [state, setState]
+	}
+}
+
+// createStore creates a lazy store. A lazy store lazily broadcasts state
+// changes to subscriptions (useEffect).
+export function createLazyStore(initialState) {
+	const subscriptions = new Set()
+
+	// cachedState captures the current state the current state for new component
+	// mounts; see useState(cachedState).
+	let cachedState = initialState
+	return () => {
+		const [state, setState] = useState(cachedState)
+
+		// Effect for when a component mounts / unmounts.
+		useEffect(() => {
+			subscriptions.add(setState)
+			return () => {
+				subscriptions.delete(setState)
+			}
+		}, [])
+
+		// Effect for state changes.
+		useEffect(() => {
+			cachedState = state
+			for (const setState of subscriptions) {
 				setState(state)
 			}
 		}, [state])
