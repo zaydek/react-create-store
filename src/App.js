@@ -8,13 +8,7 @@ function newID() {
 const initialState = {
 	done: false,
 	text: "",
-	todos: [
-		// {
-		//   id: "",
-		//   done: false,
-		//   text: false,
-		// }
-	],
+	todos: [],
 }
 
 const useTodos = createStore(initialState)
@@ -63,10 +57,15 @@ function App() {
 	const [state, setState] = useTodos()
 	const funcs = reduce(state, setState)
 
+	function handleSubmit(e) {
+		e.preventDefault()
+		funcs.addTodo()
+	}
+
 	return (
 		<div>
 			{/* eslint-disable-next-line no-sequences */}
-			<form onSubmit={e => (e.preventDefault(), funcs.addTodo())}>
+			<form onSubmit={handleSubmit}>
 				<input type="checkbox" checked={state.done} onChange={e => funcs.setDone(e.target.checked)} />
 				<input type="text" value={state.text} onChange={e => funcs.setText(e.target.value)} />
 				<button type="submit">+</button>

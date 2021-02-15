@@ -29,8 +29,8 @@ export function createStore(initialState) {
 		// Effect for state changes.
 		useLayoutEffect(() => {
 			cachedState = state
-			for (const setState of subscriptions) {
-				setState(state)
+			for (const setState_ of subscriptions) {
+				setState_(state)
 			}
 		}, [state])
 
@@ -60,8 +60,8 @@ export function createLazyStore(initialState) {
 		// Effect for state changes.
 		useEffect(() => {
 			cachedState = state
-			for (const setState of subscriptions) {
-				setState(state)
+			for (const setState_ of subscriptions) {
+				setState_(state)
 			}
 		}, [state])
 
