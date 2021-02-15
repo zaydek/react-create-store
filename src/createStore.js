@@ -1,33 +1,35 @@
-import { useEffect, useState } from "react"
+import { useLayoutEffect, useState } from "react"
+
+// function noop() {}
 
 // Creates a store implementation that is orthogonal to useState. The store is
-// responsible for capturing the current state, managing subscriptions, and
+// responsible for capturing the current state, managing subscribers, and
 // broadcasting state changes to subscribers.
 //
 // This implementation is inspired by @mucsi96’s react-create-shared-state.
 //
 // https://github.com/mucsi96/react-create-shared-state
 export default function createStore(initialState) {
-	const subscriptions = new Set()
+	const subscribers = new Set()
 
-	// currentState captures the current state the current state for new component
-	// mounts; see useState(currentState).
-	let currentState = initialState
+	// cachedState captures the current state the current state for new component
+	// mounts; see useState(cachedState).
+	let cachedState = initialState
 	return () => {
-		const [state, setState] = useState(currentState)
+		const [state, setState] = useState(cachedState)
 
 		// Effect for when a component mounts / unmounts.
-		useEffect(() => {
-			subscriptions.add(setState)
+		useLayoutEffect(() => {
+			subscribers.add(setState)
 			return () => {
-				subscriptions.delete(setState)
+				subscribers.delete(setState)
 			}
 		}, [])
 
 		// Effect for state changes.
-		useEffect(() => {
-			currentState = state
-			for (const setState of subscriptions) {
+		useLayoutEffect(() => {
+			cachedState = state
+			for (const setState of subscribers) {
 				setState(state)
 			}
 		}, [state])
