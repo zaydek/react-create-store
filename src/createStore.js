@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
 
 // This implementation is inspired by:
 //
@@ -61,58 +61,174 @@ export function createStore(initialStateOrInitializer) {
 	return { __type__: STORE_KEY, subscriptions, initialState, cachedState }
 }
 
+// // Uses a store; returns a state and setState accessor.
+// export function useStore(store) {
+// 	useCallback(() => {
+// 		if (!testStore(store)) {
+// 			throw new Error(errBadStore)
+// 		}
+// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	let [state, reactSetState] = useState(store.cachedState)
+// 	state = freeze(state)
+//
+// 	// Manages subscriptions when a component mounts / unmounts.
+// 	useEffect(() => {
+// 		store.subscriptions.add(reactSetState)
+// 		return () => {
+// 			store.subscriptions.delete(reactSetState)
+// 		}
+// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	const setState = useCallback(updater => {
+// 		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
+// 		store.cachedState = nextState
+// 		reactSetState(nextState)
+// 		for (const each of store.subscriptions) {
+// 			// Dedupe the current setState:
+// 			if (each !== reactSetState) {
+// 				each(nextState)
+// 			}
+// 		}
+// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	return [state, setState]
+// }
+
 // Uses a store; returns a state and setState accessor.
 export function useStore(store, reducer = null) {
-	// Guard store and reducer. Parameters store and reducer cannot change.
+	// Guards. Parameters store and reducer are expected to never change.
 	useCallback(() => {
 		if (!testStore(store)) {
 			throw new Error(errBadStore)
 		}
-		if (!testReducer(reducer)) {
+		if (reducer !== null && !testReducer(reducer)) {
 			throw new Error(errBadReducer)
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	let [state, reactSetState] = useState(store.cachedState)
+	let [state, setState] = useState(store.cachedState)
 	state = freeze(state)
 
 	// Manages subscriptions when a component mounts / unmounts.
 	useEffect(() => {
-		store.subscriptions.add(reactSetState)
+		store.subscriptions.add(setState)
 		return () => {
-			store.subscriptions.delete(reactSetState)
+			store.subscriptions.delete(setState)
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	const setState = useCallback(updater => {
+	const customSetState = useCallback(updater => {
 		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
+		// if (!frozen) {
+		// 	nextState = freeze(nextState)
+		// }
 		store.cachedState = nextState
-		reactSetState(nextState)
-		for (const notify of store.subscriptions) {
-			notify(nextState)
+		setState(nextState)
+		for (const set of store.subscriptions) {
+			// Dedupe the current setState:
+			if (set !== setState) {
+				set(nextState)
+			}
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Does not use useMemo because state changes on every pass.
 	let funcs
 	if (reducer !== null) {
-		store.cachedState = state
-		const methods = reducer(state)
-		funcs = Object.keys(methods).reduce((acc, key) => {
-			acc[key] = function (/* Uses (...arguments) */) {
-				const nextState = freeze(methods[key](...arguments))
-				store.cachedState = nextState
-				setState(nextState)
+		const types = reducer(state)
+		funcs = Object.keys(types).reduce((acc, type) => {
+			acc[type] = (...args) => {
+				const nextState = types[type](...args)
+				customSetState(nextState)
 			}
 			return acc
 		}, {})
 	}
 
+	// useReducer:
 	if (funcs === undefined) {
-		return [state, setState]
+		return [state, customSetState]
 	}
+	// useState:
 	return [state, funcs]
 }
+
+// // Uses a store; returns a state and funcs accessor.
+// export function useStoreReducer(store, reducer) {
+// 	useCallback(() => {
+// 		if (!testStore(store)) {
+// 			throw new Error(errBadStore)
+// 		}
+// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	// const types = useMemo(() => {
+// 	// 	return reducer(store.cachedState)
+// 	// }, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	// // Create a React reducer from parameter reducer:
+// 	// const reducerImpl = (state, action) => {
+// 	// 	const reducerImpl = Object.keys(types).reduce((acc, type) => {
+// 	// 		acc[type] = (...payload) => {
+// 	// 			const nextState = types[type](...payload) // TODO: Add freeze(...).
+// 	// 			store.cachedState = nextState // Update the cache // TODO: Run once.
+// 	//
+// 	// 			for (const each of store.subscriptions) {
+// 	// 				// // Dedupe the current setState:
+// 	// 				// if (each !== setState) {
+// 	// 				each(nextState)
+// 	// 				// }
+// 	// 			}
+// 	//
+// 	// 			return nextState
+// 	// 		}
+// 	// 		return acc
+// 	// 	}, {})
+// 	// 	// Reduce:
+// 	// 	return reducerImpl[action.type](...action.payload)
+// 	// }
+//
+// 	const [, rerender] = useState(0)
+//
+// 	// Manages subscriptions when a component mounts / unmounts.
+// 	useEffect(() => {
+// 		store.subscriptions.add(rerender)
+// 		return () => {
+// 			store.subscriptions.delete(rerender)
+// 		}
+// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+//
+// 	const [state, dispatch] = useReducer((state, action) => {
+// 		const types = reducer(state)
+// 		const reducerImpl = Object.keys(types).reduce((acc, type) => {
+// 			acc[type] = (...payload) => {
+// 				const nextState = types[type](...payload) // TODO: Add freeze(...).
+// 				store.cachedState = nextState // Update the cache // TODO: Run once.
+// 				for (const each of store.subscriptions) {
+// 					// Dedupe the current setState:
+// 					// if (rerender !== rerender_) {
+// 					each(s => s + 1)
+// 					// }
+// 				}
+// 				return nextState
+// 			}
+// 			return acc
+// 		}, {})
+// 		// Reduce:
+// 		return reducerImpl[action.type](...action.payload)
+// 	}, store.cachedState)
+//
+// 	// Convert dispatch to funcs:
+// 	const types = reducer(state)
+// 	const funcs = Object.keys(types).reduce((acc, type) => {
+// 		acc[type] = (...payload) => {
+// 			dispatch({ type, payload })
+// 		}
+// 		return acc
+// 	}, {})
+//
+// 	return [state, funcs]
+// }
 
 // Uses a store; returns a state accessor.
 export function useStoreValue(store) {
@@ -120,6 +236,6 @@ export function useStoreValue(store) {
 }
 
 // Uses a store; returns a setState accessor.
-export function useStoreSetState(store, reducer = null) {
-	return useStore(store, reducer)[1]
+export function useStoreSetState(store) {
+	return useStore(store)[1]
 }

@@ -1,4 +1,4 @@
-import { createStore, useStore, useStoreValue } from "./createStore"
+import { createStore, useStore } from "./createStore"
 
 // Creates a new four-character hash ID.
 function newID() {
@@ -54,6 +54,7 @@ const reducer = state => ({
 
 function App() {
 	const [state, funcs] = useStore(store, reducer)
+	// console.log(store)
 
 	function handleSubmit(e) {
 		e.preventDefault()
@@ -62,7 +63,6 @@ function App() {
 
 	return (
 		<div>
-			{/* eslint-disable-next-line no-sequences */}
 			<form onSubmit={handleSubmit}>
 				<input type="checkbox" checked={state.done} onChange={e => funcs.setDone(e.target.checked)} />
 				<input type="text" value={state.text} onChange={e => funcs.setText(e.target.value)} />
@@ -75,53 +75,22 @@ function App() {
 					<button onClick={() => funcs.removeByID(each.id)}>-</button>
 				</div>
 			))}
+			<pre>{JSON.stringify({ state }, null, 2)}</pre>
 		</div>
 	)
 }
 
-function AppInfo() {
-	const state = useStoreValue(store)
-	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
-}
+// function AppInfo() {
+// 	const state = useStoreValue(store)
+// 	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
+// }
 
 export default function AppRoot() {
 	return (
 		<div>
 			<App />
 			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<App />
-			<AppInfo />
+			{/* <AppInfo /> */}
 		</div>
 	)
 }
