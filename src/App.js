@@ -8,7 +8,13 @@ function newID() {
 const initialState = {
 	done: false,
 	text: "",
-	todos: [],
+	todos: [
+		// {
+		//   id,
+		//   done,
+		//   text,
+		// },
+	],
 }
 
 const store = createStore(initialState)
@@ -54,7 +60,6 @@ const reducer = state => ({
 
 function App() {
 	const [state, funcs] = useStore(store, reducer)
-	// console.log(store)
 
 	function handleSubmit(e) {
 		e.preventDefault()
@@ -75,7 +80,7 @@ function App() {
 					<button onClick={() => funcs.removeByID(each.id)}>-</button>
 				</div>
 			))}
-			<pre>{JSON.stringify({ state }, null, 2)}</pre>
+			{/* <pre>{JSON.stringify({ state }, null, 2)}</pre> */}
 		</div>
 	)
 }
@@ -85,11 +90,14 @@ function App() {
 // 	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
 // }
 
+const nums = [...new Array(10).keys()]
+
 export default function AppRoot() {
 	return (
 		<div>
-			<App />
-			<App />
+			{nums.map(num => (
+				<App key={num} />
+			))}
 			{/* <AppInfo /> */}
 		</div>
 	)

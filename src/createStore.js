@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 // This implementation is inspired by:
 //
 // - https://github.com/mucsi96/react-create-shared-state
 // - https://github.com/pelotom/use-methods
 
-const STORE_KEY = {}
+const PRIVATE_STORE_KEY = {}
 
 const errBadStore =
 	"useStore: Bad store. " +
@@ -22,14 +22,14 @@ function freeze(value) {
 	return value
 }
 
-// Tests a store for store.__type__ === STORE_KEY.
+// Tests a store for store.__type__ === PRIVATE_STORE_KEY.
 //
 // prettier-ignore
 function testStore(store) {
 	const ok = (
 		store &&
 		store.__type__ &&
-		store.__type__ === STORE_KEY
+		store.__type__ === PRIVATE_STORE_KEY
 	)
 	return ok
 }
@@ -46,7 +46,7 @@ function testReducer(reducer) {
 	return ok
 }
 
-// Creates a new store.
+// Creates a store.
 export function createStore(initialStateOrInitializer) {
 	const subscriptions = new Set()
 
@@ -58,46 +58,12 @@ export function createStore(initialStateOrInitializer) {
 	// useState(store.cachedState).
 	let cachedState = freeze(initialState)
 
-	return { __type__: STORE_KEY, subscriptions, initialState, cachedState }
+	return { __type__: PRIVATE_STORE_KEY, subscriptions, initialState, cachedState }
 }
 
-// // Uses a store; returns a state and setState accessor.
-// export function useStore(store) {
-// 	useCallback(() => {
-// 		if (!testStore(store)) {
-// 			throw new Error(errBadStore)
-// 		}
-// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	let [state, reactSetState] = useState(store.cachedState)
-// 	state = freeze(state)
-//
-// 	// Manages subscriptions when a component mounts / unmounts.
-// 	useEffect(() => {
-// 		store.subscriptions.add(reactSetState)
-// 		return () => {
-// 			store.subscriptions.delete(reactSetState)
-// 		}
-// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	const setState = useCallback(updater => {
-// 		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
-// 		store.cachedState = nextState
-// 		reactSetState(nextState)
-// 		for (const each of store.subscriptions) {
-// 			// Dedupe the current setState:
-// 			if (each !== reactSetState) {
-// 				each(nextState)
-// 			}
-// 		}
-// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	return [state, setState]
-// }
-
-// Uses a store; returns a state and setState accessor.
+// Consumes a store; returns a state and setState accessor.
 export function useStore(store, reducer = null) {
-	// Guards. Parameters store and reducer are expected to never change.
+	// NOTE: Parameters store and reducer are expected to never change.
 	useCallback(() => {
 		if (!testStore(store)) {
 			throw new Error(errBadStore)
@@ -119,10 +85,8 @@ export function useStore(store, reducer = null) {
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const customSetState = useCallback(updater => {
+		// NOTE: Reducer code freezes more than once because of freeze(state).
 		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
-		// if (!frozen) {
-		// 	nextState = freeze(nextState)
-		// }
 		store.cachedState = nextState
 		setState(nextState)
 		for (const set of store.subscriptions) {
@@ -154,88 +118,12 @@ export function useStore(store, reducer = null) {
 	return [state, funcs]
 }
 
-// // Uses a store; returns a state and funcs accessor.
-// export function useStoreReducer(store, reducer) {
-// 	useCallback(() => {
-// 		if (!testStore(store)) {
-// 			throw new Error(errBadStore)
-// 		}
-// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	// const types = useMemo(() => {
-// 	// 	return reducer(store.cachedState)
-// 	// }, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	// // Create a React reducer from parameter reducer:
-// 	// const reducerImpl = (state, action) => {
-// 	// 	const reducerImpl = Object.keys(types).reduce((acc, type) => {
-// 	// 		acc[type] = (...payload) => {
-// 	// 			const nextState = types[type](...payload) // TODO: Add freeze(...).
-// 	// 			store.cachedState = nextState // Update the cache // TODO: Run once.
-// 	//
-// 	// 			for (const each of store.subscriptions) {
-// 	// 				// // Dedupe the current setState:
-// 	// 				// if (each !== setState) {
-// 	// 				each(nextState)
-// 	// 				// }
-// 	// 			}
-// 	//
-// 	// 			return nextState
-// 	// 		}
-// 	// 		return acc
-// 	// 	}, {})
-// 	// 	// Reduce:
-// 	// 	return reducerImpl[action.type](...action.payload)
-// 	// }
-//
-// 	const [, rerender] = useState(0)
-//
-// 	// Manages subscriptions when a component mounts / unmounts.
-// 	useEffect(() => {
-// 		store.subscriptions.add(rerender)
-// 		return () => {
-// 			store.subscriptions.delete(rerender)
-// 		}
-// 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
-//
-// 	const [state, dispatch] = useReducer((state, action) => {
-// 		const types = reducer(state)
-// 		const reducerImpl = Object.keys(types).reduce((acc, type) => {
-// 			acc[type] = (...payload) => {
-// 				const nextState = types[type](...payload) // TODO: Add freeze(...).
-// 				store.cachedState = nextState // Update the cache // TODO: Run once.
-// 				for (const each of store.subscriptions) {
-// 					// Dedupe the current setState:
-// 					// if (rerender !== rerender_) {
-// 					each(s => s + 1)
-// 					// }
-// 				}
-// 				return nextState
-// 			}
-// 			return acc
-// 		}, {})
-// 		// Reduce:
-// 		return reducerImpl[action.type](...action.payload)
-// 	}, store.cachedState)
-//
-// 	// Convert dispatch to funcs:
-// 	const types = reducer(state)
-// 	const funcs = Object.keys(types).reduce((acc, type) => {
-// 		acc[type] = (...payload) => {
-// 			dispatch({ type, payload })
-// 		}
-// 		return acc
-// 	}, {})
-//
-// 	return [state, funcs]
-// }
-
-// Uses a store; returns a state accessor.
+// Consumes a store; returns a state accessor.
 export function useStoreValue(store) {
 	return useStore(store)[0]
 }
 
-// Uses a store; returns a setState accessor.
+// Consumes a store; returns a setState accessor.
 export function useStoreSetState(store) {
 	return useStore(store)[1]
 }
