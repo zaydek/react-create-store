@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 // This implementation is inspired by:
 //
@@ -14,6 +14,13 @@ const errBadStore =
 const errBadReducer =
 	"useStore: Bad reducer. " +
 	"Use const reducer = state => ({ increment() { return state + 1 } }) then const [state, funcs] = useStore(store, reducer)."
+
+function freeze(value) {
+	if (typeof value === "object") {
+		Object.freeze(value)
+	}
+	return value
+}
 
 // Tests a store for store.__type__ === STORE_KEY.
 //
@@ -43,12 +50,13 @@ function testReducer(reducer) {
 export function createStore(initialStateOrInitializer) {
 	const subscriptions = new Set()
 
-	const initialState =
-		typeof initialStateOrInitializer === "function" ? initialStateOrInitializer() : initialStateOrInitializer
+	const initialState = freeze(
+		typeof initialStateOrInitializer === "function" ? initialStateOrInitializer() : initialStateOrInitializer,
+	)
 
 	// Caches the current state for when a component mounts; see
 	// useState(store.cachedState).
-	let cachedState = initialState
+	let cachedState = freeze(initialState)
 
 	return { __type__: STORE_KEY, subscriptions, initialState, cachedState }
 }
@@ -65,7 +73,8 @@ export function useStore(store, reducer = null) {
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	const [state, reactSetState] = useState(store.cachedState)
+	let [state, reactSetState] = useState(store.cachedState)
+	state = freeze(state)
 
 	// Manages subscriptions when a component mounts / unmounts.
 	useEffect(() => {
@@ -76,7 +85,7 @@ export function useStore(store, reducer = null) {
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const setState = useCallback(updater => {
-		const nextState = typeof updater === "function" ? updater(store.cachedState) : updater
+		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
 		store.cachedState = nextState
 		reactSetState(nextState)
 		for (const notify of store.subscriptions) {
@@ -84,20 +93,22 @@ export function useStore(store, reducer = null) {
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	const funcs = useMemo(() => {
-		if (reducer === null) {
-			return null
-		}
+	// Does not use useMemo because state changes on every pass.
+	let funcs
+	if (reducer !== null) {
+		store.cachedState = state
 		const methods = reducer(state)
-		return Object.keys(methods).reduce((acc, key) => {
+		funcs = Object.keys(methods).reduce((acc, key) => {
 			acc[key] = function (/* Uses (...arguments) */) {
-				setState(methods[key](...arguments))
+				const nextState = freeze(methods[key](...arguments))
+				store.cachedState = nextState
+				setState(nextState)
 			}
 			return acc
 		}, {})
-	}, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+	}
 
-	if (reducer === null) {
+	if (funcs === undefined) {
 		return [state, setState]
 	}
 	return [state, funcs]
