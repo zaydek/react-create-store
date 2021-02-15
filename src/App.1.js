@@ -8,7 +8,13 @@ function newID() {
 const initialState = {
 	done: false,
 	text: "",
-	todos: [],
+	todos: [
+		// {
+		//   id: "",
+		//   done: false,
+		//   text: "",
+		// }
+	],
 }
 
 const useTodos = createStore(initialState)
