@@ -1,4 +1,4 @@
-import { createStore } from "./createStore"
+import { createStore, useStore, useStoreValue } from "./createStore"
 
 // Creates a new four-character hash ID.
 function newID() {
@@ -11,23 +11,24 @@ const initialState = {
 	todos: [],
 }
 
-const useTodos = createStore(initialState)
+const store = createStore(initialState)
 
-const reduce = (state, setState) => ({
+const reducer = state => ({
 	addTodo() {
 		if (state.text === "") {
 			// No-op
 			return
 		}
 		const todo = { id: newID(), done: state.done, text: state.text }
-		setState(s => ({ ...s, todos: [todo, ...s.todos] }))
-		setState(s => ({ ...s, done: false, text: "" })) // Reset
+		const done = false // Reset
+		const text = "" // Reset
+		return { ...state, done, text, todos: [todo, ...state.todos] }
 	},
 	setDone(done) {
-		setState({ ...state, done })
+		return { ...state, done }
 	},
 	setText(text) {
-		setState({ ...state, text })
+		return { ...state, text }
 	},
 	setDoneByID(id, done) {
 		const todos = state.todos.map(each => {
@@ -36,7 +37,7 @@ const reduce = (state, setState) => ({
 			}
 			return each
 		})
-		setState({ ...state, todos })
+		return { ...state, todos }
 	},
 	setTextByID(id, text) {
 		const todos = state.todos.map(each => {
@@ -45,17 +46,17 @@ const reduce = (state, setState) => ({
 			}
 			return each
 		})
-		setState({ ...state, todos })
+		return { ...state, todos }
 	},
 	removeByID(id) {
 		const todos = state.todos.filter(each => each.id !== id)
-		setState({ ...state, todos })
+		return { ...state, todos }
 	},
 })
 
 function App() {
-	const [state, setState] = useTodos()
-	const funcs = reduce(state, setState)
+	const [state, funcs] = useStore(store, reducer)
+	console.log(state, funcs)
 
 	function handleSubmit(e) {
 		e.preventDefault()
@@ -82,14 +83,8 @@ function App() {
 }
 
 function AppInfo() {
-	const [state, setState] = useTodos()
-
-	return (
-		<>
-			<pre>{JSON.stringify({ state }, null, 2)}</pre>
-			<button onClick={() => setState(initialState)}>Reset back to the original state</button>
-		</>
-	)
+	const state = useStoreValue(store)
+	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
 }
 
 export default function AppRoot() {

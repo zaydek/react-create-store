@@ -1,18 +1,42 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
-// This implementation is inspired by react-create-shared-state.
-// https://github.com/mucsi96/react-create-shared-state
+// This implementation is inspired by:
+//
+// - https://github.com/mucsi96/react-create-shared-state
+// - https://github.com/pelotom/use-methods
 
-const internalStoreReference = {}
+const STORE_KEY = {}
 
-const badStoreError = new Error(
+const errBadStore =
 	"useStore: Bad store. " +
-		"Use createStore(initialStateOrInitializer) to create a new store and then use const [state, setState] = useStore(store).",
-)
+	"Use createStore(initialStateOrInitializer) to create a new store and then const [state, setState] = useStore(store)."
 
-// Tests a store for internalStoreReference.
+const errBadReducer =
+	"useStore: Bad reducer. " +
+	"Use const reducer = state => ({ increment() { return state + 1 } }) then const [state, funcs] = useStore(store, reducer)."
+
+// Tests a store for store.__type__ === STORE_KEY.
+//
+// prettier-ignore
 function testStore(store) {
-	return store && store.__type__ && store.__type__ === internalStoreReference
+	const ok = (
+		store &&
+		store.__type__ &&
+		store.__type__ === STORE_KEY
+	)
+	return ok
+}
+
+// Tests a reducer for the presence of func keys.
+//
+// prettier-ignore
+function testReducer(reducer) {
+	const ok = (
+		typeof reducer === "object" &&
+		Object.keys(reducer).length > 0 &&
+		Object.keys(reducer).every(key => typeof key  === "function")
+	)
+	return ok
 }
 
 // Creates a new store.
@@ -26,47 +50,57 @@ export function createStore(initialStateOrInitializer) {
 	// useState(store.cachedState).
 	let cachedState = initialState
 
-	return { __type__: internalStoreReference, subscriptions, initialState, cachedState }
+	return { __type__: STORE_KEY, subscriptions, initialState, cachedState }
 }
 
 // Uses a store; returns a state and setState accessor.
 export function useStore(store, reducer = null) {
-	if (!testStore(store)) {
-		throw badStoreError
-	}
-
-	// TODO: Add testReducer.
-
-	const [state, setState] = useState(store.cachedState)
-
-	// Effect that manages subscriptions when a component mounts / unmounts.
-	useEffect(() => {
-		store.subscriptions.add(setState)
-		return () => {
-			store.subscriptions.delete(setState)
+	// Guard store and reducer. Parameters store and reducer cannot change.
+	useCallback(() => {
+		if (!testStore(store)) {
+			throw new Error(errBadStore)
+		}
+		if (!testReducer(reducer)) {
+			throw new Error(errBadReducer)
 		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Synthetic setState that broadcasts state changes to subscriptions.
-	const syntheticSetState = useCallback(action => {
-		const nextState = typeof action === "function" ? action(store.cachedState) : action
-		store.cachedState = nextState
-		setState(nextState)
-		store.subscriptions.forEach(each => each(nextState))
+	const [state, reactSetState] = useState(store.cachedState)
+
+	// Manages subscriptions when a component mounts / unmounts.
+	useEffect(() => {
+		store.subscriptions.add(reactSetState)
+		return () => {
+			store.subscriptions.delete(reactSetState)
+		}
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-	if (reducer !== null) {
-		const reduce = reducer(state)
-		const keys = Object.keys(reduce)
-		const syntheticDispatch = keys.reduce((dispatch, action) => {
-			dispatch[action] = function (/* Uses (...arguments) */) {
-				syntheticSetState(reduce[action](...arguments))
+	const setState = useCallback(updater => {
+		const nextState = typeof updater === "function" ? updater(store.cachedState) : updater
+		store.cachedState = nextState
+		reactSetState(nextState)
+		for (const notify of store.subscriptions) {
+			notify(nextState)
+		}
+	}, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+	const funcs = useMemo(() => {
+		if (reducer === null) {
+			return null
+		}
+		const methods = reducer(state)
+		return Object.keys(methods).reduce((acc, key) => {
+			acc[key] = function (/* Uses (...arguments) */) {
+				setState(methods[key](...arguments))
 			}
-			return dispatch
+			return acc
 		}, {})
-		return [state, syntheticDispatch]
+	}, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+
+	if (reducer === null) {
+		return [state, setState]
 	}
-	return [state, syntheticSetState]
+	return [state, funcs]
 }
 
 // Uses a store; returns a state accessor.
