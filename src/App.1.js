@@ -8,13 +8,7 @@ function newID() {
 const initialState = {
 	done: false,
 	text: "",
-	todos: [
-		// {
-		//   id: "",
-		//   done: false,
-		//   text: "",
-		// }
-	],
+	todos: [],
 }
 
 const useTodos = createStore(initialState)
@@ -93,7 +87,7 @@ function AppInfo() {
 	return (
 		<>
 			<pre>{JSON.stringify({ state }, null, 2)}</pre>
-			<button onClick={e => setState(initialState)}>Reset back to the original state</button>
+			<button onClick={() => setState(initialState)}>Reset back to the original state</button>
 		</>
 	)
 }
