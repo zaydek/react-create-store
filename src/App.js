@@ -1,4 +1,5 @@
-import { createStore, useStore } from "./store"
+import { createStore, useStore, useStoreValue } from "./store"
+import { Fragment } from "react"
 
 // Creates a new four-character hash ID.
 function newID() {
@@ -80,15 +81,14 @@ function App() {
 					<button onClick={() => funcs.removeByID(each.id)}>-</button>
 				</div>
 			))}
-			{/* <pre>{JSON.stringify({ state }, null, 2)}</pre> */}
 		</div>
 	)
 }
 
-// function AppInfo() {
-// 	const state = useStoreValue(store)
-// 	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
-// }
+function AppInfo() {
+	const state = useStoreValue(store)
+	return <pre>{JSON.stringify({ state }, null, 2)}</pre>
+}
 
 const nums = [...new Array(10).keys()]
 
@@ -96,9 +96,11 @@ export default function AppRoot() {
 	return (
 		<div>
 			{nums.map(num => (
-				<App key={num} />
+				<Fragment key={num}>
+					<App />
+					<AppInfo />
+				</Fragment>
 			))}
-			{/* <AppInfo /> */}
 		</div>
 	)
 }
