@@ -42,6 +42,7 @@ export function useStore(store, methods = null) {
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 	let [state, setState] = useState(store.cachedState)
+	state = Object.freeze(state)
 
 	// Manages subscriptions when a component mounts / unmounts.
 	useEffect(() => {
@@ -52,12 +53,7 @@ export function useStore(store, methods = null) {
 	}, []) // eslint-disable-line react-hooks/exhaustive-deps
 
 	const customSetState = useCallback(updater => {
-		let nextState
-		if (typeof updater === "function") {
-			nextState = freeze(updater(store.cachedState))
-		} else {
-			nextState = freeze(updater)
-		}
+		const nextState = freeze(typeof updater === "function" ? updater(store.cachedState) : updater)
 		store.cachedState = nextState
 		setState(nextState)
 		for (const set of store.subscriptions) {
@@ -78,12 +74,15 @@ export function useStore(store, methods = null) {
 	// Does not use useMemo because state changes on every pass.
 	let funcs
 	if (methods !== null) {
-		funcs = funcKeys.reduce((acc, type) => {
-			acc[type] = (...args) => {
+		// TODO: If we use useReducer we don’t need to use funcKeys.reduce on every
+		// render but then React errors: Warning: Cannot update a component (`xxx`)
+		// while rendering a different component (`xxx`).
+		funcs = funcKeys.reduce((accum, type) => {
+			accum[type] = (...args) => {
 				const nextState = methods(state)[type](...args)
 				customSetState(nextState)
 			}
-			return acc
+			return accum
 		}, {})
 	}
 

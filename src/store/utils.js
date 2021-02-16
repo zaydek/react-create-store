@@ -1,18 +1,13 @@
 import STORE_KEY from "./key"
 
+// prettier-ignore
 export function freeze(value) {
 	if (typeof value !== "object") {
 		return value
 	}
-	return !Object.isFrozen(value) ? value : Object.freeze(value)
+	return !Object.isFrozen(value) ? value :
+		Object.freeze(value)
 }
-
-// export function testFrozen(value) {
-// 	if (typeof value !== "object") {
-// 		return true
-// 	}
-// 	return Object.isFrozen(value)
-// }
 
 // prettier-ignore
 export function testStore(store) {
