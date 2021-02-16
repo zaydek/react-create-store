@@ -1,4 +1,4 @@
-import { createStore, useStore } from "./createStore"
+import { createStore, useStore } from "./store"
 
 // Creates a new four-character hash ID.
 function newID() {
